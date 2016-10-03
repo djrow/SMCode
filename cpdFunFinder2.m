@@ -18,12 +18,15 @@ m2=@(t,p)4*p(1)*t+p(2);
 % 1d unconfined msd function
 m1=@(t,p)2*p(1)*t+p(2);
 
-pStart = [.1, 0, .05,eps, .01,eps, .0025,eps, ...
-    .25, .25, .25, 1];
+% confined 2d motion
+% confMSD2=@(t,p)p(3)^2*(1-exp(-6*p(1)*t/p(3)^2))+p(2);
+
+% note: all of these values are now overwritten in the CPD2 code
+pStart = [.1,.1,.01, .001, .0001, .00001, .2, .2, .2, .2, 1];
 
 LB=zeros(1,numel(pStart));
 UB=inf(1,numel(pStart));
-UB(9:11) = 1;
+UB(7:10) = 1;
 
 if dim == 2 && immBool == 0 && globBool == 1
     if ~confBool
@@ -42,7 +45,7 @@ if dim == 2 && immBool == 0 && globBool == 1
                 cpdFun=@(x,y,p)1-...
                     c2(x,y(1),p(4))-...
                     c2(x,y(2),1-p(4));
-                pID = [1:3,9];
+                pID = [1:3,7];
                 
             case 3
                 msdFun=@(tau,p)cat(2,...
@@ -53,7 +56,7 @@ if dim == 2 && immBool == 0 && globBool == 1
                     c2(x,y(1),p(5))-...
                     c2(x,y(2),p(6))-...
                     c2(x,y(3),1-p(5)-p(6));
-                pID = [1:3,5,9:10];
+                pID = [1:4,7:8];
                 
             case 4
                 msdFun=@(tau,p)cat(2,...
@@ -66,7 +69,22 @@ if dim == 2 && immBool == 0 && globBool == 1
                     c2(x,y(2),p(7))-...
                     c2(x,y(3),p(8))-...
                     c2(x,y(4),1-p(6)-p(7)-p(8));
-                pID = [1:3,5,7,9:11];
+                pID = [1:5,7:9];
+                
+            case 5
+                msdFun=@(tau,p)cat(2,...
+                    m2(tau,p([1,2])),...
+                    m2(tau,p([3,2])),...
+                    m2(tau,p([4,2])),...
+                    m2(tau,p([5,2])),...
+                    m2(tau,p([6,2])));
+                cpdFun=@(x,y,p)1-...
+                    c2(x,y(1),p(7))-...
+                    c2(x,y(2),p(8))-...
+                    c2(x,y(3),p(9))-...
+                    c2(x,y(4),p(10))-...
+                    c2(x,y(5),1-p(7)-p(8)-p(9)-p(10));
+                pID = [1:10];
         end
     else
         switch nDiffs
@@ -75,7 +93,7 @@ if dim == 2 && immBool == 0 && globBool == 1
                     confMSD2(tau,p([1,2,3]));
                 cpdFun=@(x,y,p)1-...
                     c2(x,y(1),1);
-                pID = [1:2,12];
+                pID = [1:2,11];
                 
             case 2
                 msdFun=@(tau,p)cat(2,...
@@ -84,7 +102,7 @@ if dim == 2 && immBool == 0 && globBool == 1
                 cpdFun=@(x,y,p)1-...
                     c2(x,y(1),p(4))-...
                     c2(x,y(2),1-p(4));
-                pID = [1:3,9,12];
+                pID = [1:3,7,11];
                 
             case 3
                 msdFun=@(tau,p)cat(2,...
@@ -95,7 +113,7 @@ if dim == 2 && immBool == 0 && globBool == 1
                     c2(x,y(1),p(5))-...
                     c2(x,y(2),p(6))-...
                     c2(x,y(3),1-p(5)-p(6));
-                pID = [1:3,5,9:10,12];
+                pID = [1:4,7:8,11];
                 
             case 4
                 msdFun=@(tau,p)cat(2,...
@@ -108,14 +126,13 @@ if dim == 2 && immBool == 0 && globBool == 1
                     c2(x,y(2),p(7))-...
                     c2(x,y(3),p(8))-...
                     c2(x,y(4),1-p(6)-p(7)-p(8));
-                pID = [1:3,5,7,9:12];
+                pID = [1:5,7:9,11];
         end
     end
     pStart={pStart(pID)};
     bounds=[{LB(pID)},{UB(pID)}];
-    dID = find(ismember(pID,1:2:7));
-    aID = find(ismember(pID,9:11));
-    
+    dID = find(ismember(pID,[1,3:6]));
+    aID = find(ismember(pID,7:10));    
     
 elseif ~globBool && ~confBool
     msdFun = @(tau,p)m2(tau,p);
@@ -133,14 +150,53 @@ elseif ~globBool && ~confBool
             cpdFun = @(x,p)1-...
                 c2(x,p(1),p(3))-...
                 c2(x,p(2),1-p(3));
-            cpdStart = pStart([1,3,9]);
+            cpdStart = pStart([1,3,7]);
             cpdLB = [0,0,0];
             cpdUB = [inf,inf,1];
+        case 3
+            cpdFun = @(x,p)1-...
+                c2(x,p(1),p(4))-...
+                c2(x,p(2),p(5))-...
+                c2(x,p(3),1-p(4)-p(5));
+            cpdStart = pStart([1,3,4,7,8]);
+            cpdLB = zeros(1,5);
+            cpdUB = [inf(1,3),1,1];
+        case 4
+            cpdFun = @(x,p)1-...
+                c2(x,p(1),p(5))-...
+                c2(x,p(2),p(6))-...
+                c2(x,p(3),p(7))-...
+                c2(x,p(4),1-p(5)-p(6)-p(7));
+            cpdStart = pStart([1,3,4,5,7:9]);
+            cpdLB = zeros(1,7);
+            cpdUB = [inf(1,4),1,1,1];
     end
     pStart = [{cpdStart},{msdStart}];
     bounds = [{cpdLB},{cpdUB},{msdLB},{msdUB}];
     dID = nan;
     aID = nan;
+elseif dim == 1
+    switch nDiffs
+        case 1
+            msdFun=@(tau,p) ...
+                m1(tau,p([1,2]));
+            cpdFun=@(x,y,p)...
+                c1(x,y(1),1);
+            pID = 1:2;
+            
+        case 2
+            msdFun=@(tau,p)cat(2,...
+                m1(tau,p([1,2])),...
+                m1(tau,p([3,2])));
+            cpdFun=@(x,y,p)...
+                c1(x,y(1),p(4))+...
+                c1(x,y(2),1-p(4));
+            pID = [1:3,7];
+    end
+    pStart={pStart(pID)};
+    bounds=[{LB(pID)},{UB(pID)}];
+    dID = find(ismember(pID,[1,3:6]));
+    aID = find(ismember(pID,7:10));   
 else
     warning('unsupported parameters')
     outStruct = [];
@@ -156,7 +212,7 @@ end
 %% 2d square confinement model
 function z=confMSD2(tau,p)
 % global camerasd
-d=p(1); l=p(2);
+d=p(1); l=p(3);
 
 summedterm=@(t,d,l,n)1/n^4*exp(-(n*pi/l).^2*d*t);
 
@@ -168,5 +224,5 @@ for ii=1:2:2*400-1
     end
     temp=temp+s;
 end
-z=l^2/3*(1-96/pi^4*temp)+p(3);
+z=l^2/3*(1-96/pi^4*temp)+p(2);
 end

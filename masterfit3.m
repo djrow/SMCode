@@ -12,13 +12,13 @@ function paramsAn=masterfit3(mainfold)
 %% parameters
 % CAMERA PARAMETERS
 cParams.pixelSize = 49;
-cParams.frameRate = 1/.04;
+cParams.frameRate = 1/.01;
 
 % ANALYSIS PARAMETERS
 paramsAn.checkVals = 0;
-paramsAn.phaseImages = 1;
+paramsAn.phaseImages = 0;
 paramsAn.okWithPhase = 1;
-paramsAn.fittingBool = 0;
+paramsAn.fittingBool = 1;
 paramsAn.trackingBool = 1;
 paramsAn.makeXls = 0;
 paramsAn.viewFits = 'all'; % 'all';
@@ -41,9 +41,9 @@ fieldsPhase = fieldnames(paramsPhase);
 
 % PEAK GUESSING PARAMETERS,
 paramsPeaks.spotSizeLB = 1.2;
-paramsPeaks.spotSizeUB = 10;
-paramsPeaks.intThresh = 100;
-paramsPeaks.hMax = 200;
+paramsPeaks.spotSizeUB = 8;
+paramsPeaks.intThresh = 500;
+paramsPeaks.hMax = 700;
 paramsPeaks.lZero = 10;
 fieldsPeaks = fieldnames(paramsPeaks);
 
@@ -51,8 +51,8 @@ fieldsPeaks = fieldnames(paramsPeaks);
 paramsTr.minMerit = .1;
 paramsTr.intTime = 1/cParams.frameRate;
 paramsTr.gamma = .25;
-paramsTr.minTrLength =3;
-paramsTr.maxStepSize = 10;
+paramsTr.minTrLength = 40;
+paramsTr.maxStepSize = 20;
 paramsTr.swh = 1;
 paramsTr.delay = 0;
 fieldsTr = fieldnames(paramsTr);
@@ -101,7 +101,7 @@ if paramsAn.phaseImages
         return
     end
     
-    if ~iscell(phaselist); phaselist={phaselist}; disp('i new it'); end
+    if ~iscell(phaselist); phaselist={phaselist}; end
     phaselist = cellfun(@(x)[phaselistloc, x],phaselist,'uniformoutput',false);
     [plocs,pnames,pexts]=cellfun(@fileparts,phaselist,'uniformoutput',false);
     
@@ -117,14 +117,14 @@ if paramsAn.phaseImages
         
         m.phaseImg = phaseImg;
     end
-else
-    for ii=1:numel(dnames)
-        [~,~,sz]=binGetFrames2([fullfile(dlocs{ii},dnames{ii}),'.bin'],1);
-        m=matfile([fullfile(dlocs{ii},dnames{ii}),'_analysis.mat'],'Writable',true);
-        
-        m.phaseMask = ones(sz);
-        m.phaseImg = ones(sz);
-    end
+% else
+%     for ii=1:numel(dnames)
+% %         [~,~,sz]=binGetFrames2([fullfile(dlocs{ii},dnames{ii}),'.bin'],1);
+%         m=matfile([fullfile(dlocs{ii},dnames{ii}),'_analysis.mat'],'Writable',true);
+%         
+%         m.phaseMask = ones(128);
+%         m.phaseImg = ones(128);
+%     end
 end
 
 %% WRITE BINARY FILES
@@ -220,12 +220,16 @@ for movieNum = 1:numel(dnames)
     movieName = fullfile(dlocs{movieNum},dnames{movieNum});
     [~,nFrames,vSize] = binGetFrames2([movieName,'.bin'],1);
     m = matfile([movieName, '_analysis.mat'],'Writable',true);
-    phaseImg = m.phaseImg;
+    
     
     try
         phaseMask = m.phaseMask;
+        phaseImg = m.phaseImg;
     catch
-        warning(['missing phase mask in movie ' movieName])
+        phaseMask = ones(vSize);
+        phaseImg = ones(vSize);
+        m.phaseMask = phaseMask;
+        m.phaseImg = phaseMask;
     end
     
     if paramsAn.fittingBool
@@ -312,9 +316,9 @@ for movieNum = 1:numel(dnames)
             
             % results selection
             whichGood = ...
-                allFits(:,7) > paramsAn.widthLB & ...
-                allFits(:,7) < paramsAn.widthUB & ...
-                allFits(:,21) > 0;
+                allFits(:,7) > paramsAn.widthLB & ...   % fit is within the width tolerance
+                allFits(:,7) < paramsAn.widthUB & ...   % fit is within the width tolerance
+                allFits(:,21) > 0;                      % fit is in a cell
             goodFits = allFits(whichGood,:);
             
             % WRITE ANALYSIS FILE

@@ -180,7 +180,7 @@ end
 nFits = size(guesses,1);
 
 % output initialization
-if nFits > 50
+if nFits > 500
     warning(['way too many fits in frame number ' num2str(params.frameNumber)])
     fitPars = nan(1,5);
 %     conf95 = nan(1,5);
