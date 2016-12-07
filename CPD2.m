@@ -1,4 +1,4 @@
-function [out,sqSteps] = CPD2(mainfold,varargin)
+function [out] = CPD2(mainfold,varargin)
 % tracking data in the analysis files must be in pixels. the legacy
 % "trackfile" variable has columns 4 and 5 in pixels.
 %
@@ -185,14 +185,6 @@ if anProp.globBool
     y=cellfun(@(x,y)x(1:floor(y*anProp.stepSizeLP)),y,nSteps,'uniformoutput',0);
     r=cellfun(@(x,y)x(1:floor(y*anProp.stepSizeLP)),oRanks,nSteps,'uniformoutput',0);
     
-    % evenly space the diffusion coefficient starting values
-    if numel(dID)>1
-        pStart{1}(dID) = logspace(-5,0,numel(dID));
-        %         pStart{1}(dID) = [1e-4,1e-1];
-    else
-        pStart{1}(dID) = .01;
-    end
-    
     % uninformed amplitude guesses
     pStart{1}(aID) = 1/(numel(aID)+1);
     
@@ -217,7 +209,7 @@ if anProp.globBool
         y1=cellfun(@(x,y)x(1:floor(y*anProp.stepSizeLP)),y1,nSteps,'uniformoutput',0);
         r1=cellfun(@(x,y)x(1:floor(y*anProp.stepSizeLP)),oRanks,nSteps,'uniformoutput',0);
         
-        [fP_B(kk,:),~, ~,~,~,~, ~] = lsqnonlin(@(p)fHandle(...
+        [fP_B(kk,:),~, ~,~,~,~,~] = lsqnonlin(@(p)fHandle(...
             p,tau(minTau:end),y1(minTau:end),r1(minTau:end)),...
             pStart{1},bounds{1},bounds{2},opts);
         
@@ -237,11 +229,6 @@ elseif ~anProp.globBool
     
     % fit the cpds (original data)
     y = sqSteps;
-
-    if anProp.nMobile == 2
-        cpdStart(:,1) = .02+(0:anProp.maxTau-1)*.036;
-        cpdStart(:,2) = .008+(0:anProp.maxTau-1)*.014;
-    end
     
     r_nB = [];
     for mm = anProp.minTau:anProp.maxTau
@@ -249,15 +236,13 @@ elseif ~anProp.globBool
             cpdStart(mm,:),y{mm},oRanks{mm},cpdLB,cpdUB,opts);
         r_nB = cat(1,r_nB,rTemp);
         residCell{mm} = rTemp;
+        cpdFit{mm}=cpdFun(y{mm},fP1_nB(:,mm));
     end
     
     % fit the msd curves
     for mm = 1 : anProp.nMobile
-        %         fP2_nB(:,mm) = lsqcurvefit(@(p,x)msdFun(x,p),msdStart,msdLB,msdUB,opts);
-        [fP2_nB(:,mm),~,~] = lsqnonlin(@(p)(...
-            msdFun(tau(anProp.minTau:anProp.maxTau),p)-...
-            fP1_nB(mm,anProp.minTau:anProp.maxTau)') .* [nSteps{anProp.minTau:anProp.maxTau}]'/nTotal,...
-            msdStart,msdLB,msdUB,opts);
+        [fP2_nB(:,mm),~,res] = lsqcurvefit(@(p,x)msdFun(x,p),msdStart,tau,fP1_nB(mm,:)',...
+            msdLB,msdUB,opts);
     end
     
     fP2_B = zeros(numel(msdStart),anProp.nMobile,anProp.bootNum);
@@ -278,13 +263,8 @@ elseif ~anProp.globBool
         temp = zeros(numel(msdStart),anProp.nMobile);
         for mm = 1 : anProp.nMobile
             % unweighted fit
-            %         fParams2(:,mm)=lsqcurvefit(@(p,x)msdFun(x,p),msdStart,tau,fParams1(mm,:)',...
-            %             msdLB,msdUB,opts);
-            % weighted fit
-            temp(:,mm) = lsqnonlin(@(p)(msdFun(tau(anProp.minTau:anProp.maxTau),p)-...
-                fParams1(mm,anProp.minTau:anProp.maxTau)') .* ...
-                [nSteps{anProp.minTau:anProp.maxTau}]'/nTotal,...
-                msdStart,msdLB,msdUB,opts);
+            temp(:,mm)=lsqcurvefit(@(p,x)msdFun(x,p),msdStart,tau,fParams1(mm,:)',...
+                msdLB,msdUB,opts);
         end
         fP2_B(:,:,kk) = temp;
     end
@@ -307,6 +287,7 @@ if anProp.globBool
     end
     out.fittedParameters_nB = fP_nB;
     out.cpdResiduals = residCell;
+    out.cpdFit = eHandle(fP_nB,tau,sqSteps);
     out.sqSteps = sqSteps;
     out.dID = dID;
     out.aID = aID;
@@ -354,6 +335,7 @@ else
     out.cpdParameters_nB = fP1_nB;
     out.msdParameters_nB = fP2_nB;
     out.cpdResiduals = residCell;
+    out.cpdFit = cpdFit;
     out.sqSteps = sqSteps;
     
     if anProp.plotBool

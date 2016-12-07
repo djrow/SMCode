@@ -22,9 +22,11 @@ m1=@(t,p)2*p(1)*t+p(2);
 % confMSD2=@(t,p)p(3)^2*(1-exp(-6*p(1)*t/p(3)^2))+p(2);
 
 % note: all of these values are now overwritten in the CPD2 code
-pStart = [.1,.1,.01, .001, .0001, .00001, .2, .2, .2, .2, 1];
+pStart = [.3,0,.1, .01, .0025, .00001, .2, .2, .2, .2, 1];
 
 LB=zeros(1,numel(pStart));
+LB(2) = -inf;
+LB(7:10) = 0;
 UB=inf(1,numel(pStart));
 UB(7:10) = 1;
 
@@ -137,7 +139,7 @@ if dim == 2 && immBool == 0 && globBool == 1
 elseif ~globBool && ~confBool
     msdFun = @(tau,p)m2(tau,p);
     msdStart = pStart([1,2]);
-    msdLB = [0,-inf];
+    msdLB = [-inf,-inf];
     msdUB = [inf,inf];
     switch nDiffs
         case 1
